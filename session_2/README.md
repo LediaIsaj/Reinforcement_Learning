@@ -54,7 +54,7 @@ code of `agents.py` by completing blank methods for each Agent.
 
 ## D) How do I proceed to be evaluated ?
 
-You will be noted on the implementation of the 3 agents in the `agents.py` file.
-Bonus points will be given to clean and scalable code.
+You will be noted on the implementation of the 2 agents (VI, PI) in the `agents.py` file.
+Bonus points will be given to clean, scalable code and Q-learning implementation.
 
-You need to send `agents.py` to heri(at)lri(dot)fr before November, 15th 2019 at 23:59. 
+You need to send `agents.py` to heri(at)lri(dot)fr before November, 15th 2019 at 23:59.

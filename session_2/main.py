@@ -38,17 +38,8 @@ def plot_results(sum_of_rewards, list_legends):
     plt.show()
 
 def plot_policy(policy, V, name):
-    # Action in [TOP, DOWN, RIGHT, LEFT]
-    action = {0: "T", 1: "D", 2: "R", 3: "L"}
-    # for i in range(4):
-    #     if i != 0:
-    #         plt.figure(i)
-    #     policy_ = policy[:, i].reshape((4, 12))
-    #     policy_[3, 0] = -1
-    #     policy_[3, 11] = -1
-    #     plt.matshow(np.round(policy_))
-    #     plt.title('Aglo: ' + name + ' - Policy : ' + action[i])
-    # print(policy.argmax(1).reshape((4, 12)))
+    # Action in [UP, RIGHT, DOWN, LEFT]
+    action = {0: "T", 1: "R", 2: "D", 3: "L"}
 
     for id_r, row in enumerate(policy.argmax(1).reshape((4, 12))):
         for id_c, col in enumerate(row):

@@ -66,9 +66,24 @@ class ValueIteration:
         """
         # Intialize random V
         V = np.zeros(self.mdp.env.nS)
-
-        # TO IMPLEMENT
-
+        
+        while True:
+            delta = 0
+            #loop over the states, not the last one (goal)
+            for s in range(self.mdp.env.nS -1):
+                Q = np.zeros(self.mdp.env.nA)
+                for a in range(self.mdp.env.nA): #all actions
+                    for  prob_s, next_state, reward, done in self.mdp.env.P[s][a]:
+                        Q[a] += prob_s * (reward + self.gamma * V[next_state]) #calculate value function
+                    
+                max_value_function_s = np.max(Q)
+            
+                delta = max(delta, np.abs(max_value_function_s - V[s]))
+            
+                V[s] = max_value_function_s
+        
+            if delta < 0.00001: #compare to a threshold theta
+                break
         return V
 
     def optimal_policy_extraction(self, V):
@@ -77,6 +92,18 @@ class ValueIteration:
         """
         policy = np.zeros([self.mdp.env.nS, self.mdp.env.nA])
         # TO IMPLEMENT
+        #loop over the states, not the last one (goal)
+        for s in range(self.mdp.env.nS -1 ):
+            Q_sa = np.zeros(self.mdp.env.nA)
+            for a in range(self.mdp.env.nA): #for all actions
+                for  prob_s, next_state, reward, done in self.mdp.env.P[s][a]:
+                    if s==next_state: #I put a high negative reward in order to avoid the same state
+                            reward = -1000
+                    Q_sa[a] += prob_s * (reward + self.gamma * V[next_state])
+
+            best_action = np.argmax(Q_sa)
+
+            policy[s] = np.eye(self.mdp.env.nA)[best_action]
 
         return policy
 
@@ -88,8 +115,10 @@ class ValueIteration:
         """
         policy = np.random.uniform(0, 1, (self.mdp.env.nS, self.mdp.env.nA))
         V = np.zeros(self.mdp.env.nS)
-
-        # TO IMPLEMENT
+        # TO IMPLEMENT 
+        optimal_v = self.optimal_value_function()
+    
+        policy = self.optimal_policy_extraction(optimal_v)
         return policy, V
 
 
@@ -104,18 +133,39 @@ class PolicyIteration:
         """
         V = np.zeros(self.mdp.env.nS) # intialize V to 0's
 
-        # TO IMPLEMENT
-
+        while True:
+            delta = 0
+            #loop over the states, not the last one (goal)
+            for state in range(self.mdp.env.nS -1): 
+                val = 0  
+                for action,act_prob in enumerate(policy[state]):  #for all actions 
+                    for prob,next_state,reward,done in self.mdp.env.P[state][action]:
+                        if state==next_state: #put a high negative reward to avoid the same state
+                            reward = -1000
+                        val += act_prob * prob * (reward + self.gamma * V[next_state])  
+                
+               
+                delta = max(delta, np.abs(V[state]-val))
+                V[state] = val
+            if delta < 0.00001:  #compare to threshold theta
+                break
         return np.array(V)
 
     def policy_improvement(self, V, policy):
         """2nd step of policy iteration algorithm
             Return: the improved policy
         """
-        # TO IMPLEMENT
+        #loop over the states, not the last one (goal)
+        q = np.zeros(self.mdp.env.nA)
+        for s in range(self.mdp.env.nS -1): 
+            for a in range(self.mdp.env.nA):
+                for prob, next_state, reward, done in self.mdp.env.P[s][a]:
+                    if s == next_state: #put a high negative reward to avoid the same state
+                        reward = -1000
+                    q[a] += prob * (reward + self.gamma * V[next_state])
 
-        return policy
-
+        return q
+    
 
     def policy_iteration(self):
         """This is the main function of policy iteration algorithm.
@@ -124,9 +174,31 @@ class PolicyIteration:
                 (optimal) state value function V
         """
         # Start with a random policy
-        policy = np.random.uniform(0, 1, (self.mdp.env.nS, self.mdp.env.nA))  # Action in [TOP, DOWN, RIGHT, LEFT]
+        policy = np.random.uniform(0, 1, (self.mdp.env.nS, self.mdp.env.nA))  # Action in [UP, RIGHT, DOWN, LEFT]
+
         V = np.zeros(self.mdp.env.nS)
-
         # To implement: You need to call iteratively step 1 and 2 until convergence
-
+        for i in range(0,500):
+            policy, V = self.iterate(policy)
         return policy, V
+    
+    def iterate(self,policy):
+        
+        curr_pol_val = self.policy_evaluation(policy)
+        policy_stable = True  
+        for state in range(self.mdp.env.nS -1):
+            chosen_act = np.argmax(policy[state])  
+            act_values = self.policy_improvement(curr_pol_val,policy)
+                
+            best_act = np.argmax(act_values)
+            print(chosen_act)
+            print("done")
+            print(best_act)
+            if chosen_act != best_act:
+                policy_stable = False 
+                policy[state] = np.eye(self.mdp.env.nA)[best_act]  
+        
+        
+        return policy, curr_pol_val
+        
+        
