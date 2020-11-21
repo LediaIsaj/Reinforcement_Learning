@@ -136,15 +136,15 @@ class PolicyIteration:
         while True:
             delta = 0
             #loop over the states, not the last one (goal)
+            
             for state in range(self.mdp.env.nS -1): 
-                val = 0  
+                val = 0 
                 for action,act_prob in enumerate(policy[state]):  #for all actions 
                     for prob,next_state,reward,done in self.mdp.env.P[state][action]:
-                        if state==next_state: #put a high negative reward to avoid the same state
+                        if (state == next_state): #put a high negative reward to avoid the same state
                             reward = -1000
                         val += act_prob * prob * (reward + self.gamma * V[next_state])  
-                
-               
+
                 delta = max(delta, np.abs(V[state]-val))
                 V[state] = val
             if delta < 0.00001:  #compare to threshold theta
@@ -160,11 +160,12 @@ class PolicyIteration:
         for s in range(self.mdp.env.nS -1): 
             for a in range(self.mdp.env.nA):
                 for prob, next_state, reward, done in self.mdp.env.P[s][a]:
-                    if s == next_state: #put a high negative reward to avoid the same state
+                    if (s == next_state): #put a high negative reward to avoid the same state
                         reward = -1000
                     q[a] += prob * (reward + self.gamma * V[next_state])
-
-        return q
+        best = np.argmax(q)
+        policy[s] = np.eye(self.mdp.env.nA)[best]
+        return policy
     
 
     def policy_iteration(self):
@@ -178,27 +179,22 @@ class PolicyIteration:
 
         V = np.zeros(self.mdp.env.nS)
         # To implement: You need to call iteratively step 1 and 2 until convergence
-        for i in range(0,500):
-            policy, V = self.iterate(policy)
-        return policy, V
-    
-    def iterate(self,policy):
+
+        # I looped through a big number and I stop when converges. This can be set to a bigger value
+        # If it does not converge yet, it will return close to optimal values and the number of iterations should increase to reach optimum
+        for i in range(1000):
         
-        curr_pol_val = self.policy_evaluation(policy)
-        policy_stable = True  
-        for state in range(self.mdp.env.nS -1):
-            chosen_act = np.argmax(policy[state])  
-            act_values = self.policy_improvement(curr_pol_val,policy)
-                
-            best_act = np.argmax(act_values)
-            print(chosen_act)
-            print("done")
-            print(best_act)
-            if chosen_act != best_act:
-                policy_stable = False 
-                policy[state] = np.eye(self.mdp.env.nA)[best_act]  
+            V = self.policy_evaluation(policy)
         
+            old = np.copy(policy)
         
-        return policy, curr_pol_val
+            new = self.policy_improvement(V,old)
         
+            if (np.all(policy == new)):
+                print ('Policy-Iteration converged at step %d.' %(i+1))
+                break
+        policy = new
         
+        return policy,V
+        
+
