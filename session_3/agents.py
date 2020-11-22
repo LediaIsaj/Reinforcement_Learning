@@ -1,5 +1,6 @@
 import numpy as np
 import random
+import math
 random.seed(0)
 np.random.seed(0)
 
@@ -62,6 +63,7 @@ class BesaAgent():
     # https://hal.archives-ouvertes.fr/hal-01025651v1/document
     def __init__(self):
         self.A = [0,1,2,3,4,5,6,7,8,9]
+        
 
     def choose(self):
         """Acts in the environment.
@@ -102,13 +104,22 @@ class UCBAgent:
     # https://homes.di.unimi.it/~cesabian/Pubblicazioni/ml-02.pdf
     def __init__(self):
         self.A = [0,1,2,3,4,5,6,7,8,9]
+        self.mu = {a:[] for a in self.A}
+        self.initialized = 0
+        self.nj = 0
 
     def choose(self):
         """Acts in the environment.
 
         returns the chosen action.
         """
-        raise NotImplemented
+        self.nj +=1
+        if (self.initialized < 10):
+            chosen = self.A[self.initialized]
+            self.initialized +=1
+            return chosen
+        else:
+            return np.argmax([np.mean(self.mu[a]) + math.sqrt(2* math.log(len(self.mu[a]))/self.nj) for a in self.A])
 
     def update(self, a, r):
         """Receive a reward for performing given action on
@@ -116,7 +127,7 @@ class UCBAgent:
 
         This is where your agent can learn.
         """
-        raise NotImplemented
+        self.mu[a].append(r)
 
 class ThompsonAgent:
     # https://en.wikipedia.org/wiki/Thompson_sampling
