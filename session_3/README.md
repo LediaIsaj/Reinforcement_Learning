@@ -41,3 +41,5 @@ You will be noted:
 
 
 Send `agents.py` and answers to heri(at)lri(dot)fr before November, 25th 2020 at 23:59.
+
+
