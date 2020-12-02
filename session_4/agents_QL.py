@@ -1,11 +1,7 @@
 import numpy as np
 import environment 
-import random
-from keras.models import Sequential
-from keras.layers import Dense, Dropout
-from keras.optimizers import Adam
+from sklearn.linear_model import LinearRegression
 
-from collections import deque
 """
 Contains the definition of the agent that will run in an
 environment.
@@ -18,55 +14,33 @@ class Q_Learning_Function_Approximation:
     def __init__(self):
         """Init a new agent.
         """
-        self.memory  = deque(maxlen=2000)
-        self.action_space = [0,1,2]
-        self.states = 2
-        self.gamma = 0.95
-        self.epsilon = 1.0
-        self.epsilon_min = 0.01
-        self.epsilon_decay = 0.995
-        self.learning_rate = 0.01
-        self.tau = 0.05
-        self.model = self.create_model()
-        self.target_model = self.create_model()
-        
-    def create_model(self):
-        model   = Sequential()
-        model.add(Dense(24, input_dim=self.states, activation="relu"))
-        model.add(Dense(48, activation="relu"))
-        model.add(Dense(24, activation="relu"))
-        model.add(Dense(len(self.action_space)))
-        model.compile(loss="mean_squared_error",
-        optimizer=Adam(lr=self.learning_rate))
-        return model
-    
-    def remember(self, state, action, reward, new_state, done):
-        self.memory.append([state, action, reward, new_state, done])
-        return
-    
-    def replay(self):
-        batch_size = 32
-        if len(self.memory) < batch_size: 
-            return
-        samples = random.sample(self.memory, batch_size)
-        for sample in samples:
-            state, action, reward, new_state, done = sample
-            target = self.target_model.predict(np.array([state]))
-            if done:
-                target[0][action] = reward
-            else:
-                Q_future = max(self.target_model.predict(np.array([state]))[0])
-                target[0][action] = reward + Q_future * self.gamma
-            self.model.fit(np.array([state]), target, epochs=1, verbose=0)
-        return
+        self.pos_space = np.linspace(-1.2, 0.6, 12)
+        self.vel_space = np.linspace(-0.07, 0.07, 20)
+        self.action_space = [0, 1, 2]
+        self.alpha = 0.1
+        self.gamma = 0.9
+        self.eps = 1
+        self.model = LinearRegression()
             
-    def target_train(self):
-        weights = self.model.get_weights()
-        target_weights = self.target_model.get_weights()
-        for i in range(len(target_weights)):
-            target_weights[i] = weights[i]
-        self.target_model.set_weights(target_weights)
-        return
+        self.variables = [] #position,velocity,action
+        self.qvalues = [] #after update
+        
+        states = []
+        for pos in range(21):
+            for vel in range(21):
+                states.append((pos, vel))
+
+        self.Q = {}
+        for state in states:
+            for action in self.action_space:
+                self.Q[state, action] = 0
+    
+    def get_state(self,observation):
+        pos, vel =  observation
+        pos_bin = int(np.digitize(pos, self.pos_space))
+        vel_bin = int(np.digitize(vel, self.vel_space))
+
+        return (pos_bin, vel_bin)
 
     def act(self, state):
         """Acts given an observation of the environment.
@@ -79,12 +53,18 @@ class Q_Learning_Function_Approximation:
             - position: [-1.2, 0.6]
             - velocity: [-0.07, 0.07]
         """
-        self.epsilon *= self.epsilon_decay
-        self.epsilon = max(self.epsilon_min, self.epsilon)
-        if np.random.random() < self.epsilon:
-            return np.random.choice(self.action_space)
-        return np.argmax(self.model.predict(np.array([state]))[0])
-
+        #if first trial or less then epsilon(explore)--> random choice, else be greedy
+        if (len(self.Q) == 0 or np.random.random() < self.eps):
+            action = np.random.choice([0,1,2])
+        else:
+            obs = self.get_state(state)
+            list_q = []
+            for a in self.action_space:
+                list_q.append(self.Q[obs,a])
+            values = np.array([list_q])
+            action = np.argmax(values)  
+        return action
+            
 
     def update(self, state, action, reward, new_state, terminal):
         """Receive a reward for performing given action.
@@ -97,11 +77,15 @@ class Q_Learning_Function_Approximation:
             new_state: next state
             terminal: boolean if new_state is a terminal state or not
         """
-        print("State",state)
-        print("New state",new_state)
-        self.remember(state, action, reward, new_state, terminal)
-        self.replay()
-        self.target_train()
+        obs = self.get_state(state)
+        new_obs = self.get_state(new_state)
+        list_q = []
+        for a in self.action_space:
+            list_q.append(self.Q[obs,a])
+        values = np.array([list_q])
+        new_action = np.argmax(values)  
+        self.Q[obs, action] = self.Q[obs, action] + self.alpha*(reward + self.gamma*self.Q[new_obs, new_action] - self.Q[obs, action])
+        
 
     def q(self, state, action):
         """Final Q function. It will be used for visualization purposes.
@@ -111,7 +95,8 @@ class Q_Learning_Function_Approximation:
         Return:
             Value (scalar) of Q(state, action)
         """
-        return self.model.predict(np.array([state]))[action]
+        obs = self.get_state(state)
+        return self.Q[obs, action]
 
 
 
