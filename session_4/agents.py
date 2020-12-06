@@ -4,7 +4,6 @@ import random
 from keras.models import Sequential
 from keras.layers import Dense, Dropout
 from keras.optimizers import Adam
-
 from collections import deque
 """
 Contains the definition of the agent that will run in an
@@ -18,20 +17,21 @@ class Q_Learning_Function_Approximation:
     def __init__(self):
         """Init a new agent.
         """
-        self.memory  = deque(maxlen=2000)
-        self.action_space = [0,1,2]
-        self.states = 2
-        self.gamma = 0.95
+        #Initialize all the hyperparameters and create the models
+        
+        self.memory  = []
+        self.action_space = [0,1,2] #push left, no push, push right
+        self.states = 2 #number of states
+        self.gamma = 0.9 #discount factor
         self.epsilon = 1.0
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.995
         self.learning_rate = 0.01
-        self.tau = 0.05
-        self.model = self.create_model()
-        self.target_model = self.create_model()
+        self.pred = self.create_model() # pred model is to do predictions for what action to take
+        self.track = self.create_model() # track model tracks the desired actions
         
     def create_model(self):
-        model   = Sequential()
+        model = Sequential()
         model.add(Dense(24, input_dim=self.states, activation="relu"))
         model.add(Dense(48, activation="relu"))
         model.add(Dense(24, activation="relu"))
@@ -40,33 +40,40 @@ class Q_Learning_Function_Approximation:
         optimizer=Adam(lr=self.learning_rate))
         return model
     
-    def remember(self, state, action, reward, new_state, done):
-        self.memory.append([state, action, reward, new_state, done])
+    def memorize(self, state, action, reward, new_state, done):
+        #this is where we store in memory, so we can take adventage of past experience
+        step = [state, action, reward, new_state, done]
+        self.memory.append(step)
         return
     
     def replay(self):
-        batch_size = 32
-        if len(self.memory) < batch_size: 
+        batch = 32
+        if len(self.memory) < batch: 
             return
-        samples = random.sample(self.memory, batch_size)
-        for sample in samples:
-            state, action, reward, new_state, done = sample
-            target = self.target_model.predict(np.array([state]))
+        
+        steps = random.sample(self.memory, batch) #sample from memory
+        
+        for step in steps:
+            state, action, reward, new_state, done = step
+            track = self.track.predict(np.array([state]))
             if done:
-                target[0][action] = reward
+                track[0][action] = reward
             else:
-                Q_future = max(self.target_model.predict(np.array([state]))[0])
-                target[0][action] = reward + Q_future * self.gamma
-            self.model.fit(np.array([state]), target, epochs=1, verbose=0)
+                # Calculate Q as the sum of the current reward and expected future rewards*gamma
+                track[0][action] = reward +  max(self.track.predict(np.array([state]))[0]) * self.gamma
+            self.pred.fit(np.array([state]), track, epochs=1, verbose=0)
+            
         return
             
-    def target_train(self):
-        weights = self.model.get_weights()
-        target_weights = self.target_model.get_weights()
-        for i in range(len(target_weights)):
-            target_weights[i] = weights[i]
-        self.target_model.set_weights(target_weights)
-        return
+    def track_update(self):
+        #update the weights of track model
+        pred_weights = self.pred.get_weights()
+        track_weights = self.track.get_weights()
+        n = len(track_weights)
+        for i in range(n):
+            track_weights[i] = pred_weights[i]
+        self.pred.set_weights(track_weights)
+
 
     def act(self, state):
         """Acts given an observation of the environment.
@@ -82,8 +89,9 @@ class Q_Learning_Function_Approximation:
         self.epsilon *= self.epsilon_decay
         self.epsilon = max(self.epsilon_min, self.epsilon)
         if np.random.random() < self.epsilon:
-            return np.random.choice(self.action_space)
-        return np.argmax(self.model.predict(np.array([state]))[0])
+            return np.random.choice(self.action_space) #exploration, choose randomly from action space
+        else:
+            return np.argmax(self.pred.predict(np.array([state]))[0])
 
 
     def update(self, state, action, reward, new_state, terminal):
@@ -97,11 +105,10 @@ class Q_Learning_Function_Approximation:
             new_state: next state
             terminal: boolean if new_state is a terminal state or not
         """
-        print("State",state)
-        print("New state",new_state)
-        self.remember(state, action, reward, new_state, terminal)
+
+        self.memorize(state, action, reward, new_state, terminal)
         self.replay()
-        self.target_train()
+        self.track_update()
 
     def q(self, state, action):
         """Final Q function. It will be used for visualization purposes.
@@ -111,7 +118,7 @@ class Q_Learning_Function_Approximation:
         Return:
             Value (scalar) of Q(state, action)
         """
-        return self.model.predict(np.array([state]))[action]
+        return self.pred.predict(np.array([state]))[action]
 
 
 
