@@ -113,6 +113,7 @@ class BatchFARunner:
         cum_avg_reward = 0.0
         list_avg = []
         for g in range(1, games+1):
+            print("episode")
             avg_reward = self.game(max_iter)
             cum_avg_reward += avg_reward
             if self.verbose:
